@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.StringJoiner;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -18,7 +19,7 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.AbstractTableModel;
 
 import lombok.Getter;
-
+import lombok.Setter;
 import model.BaseProduct;
 import model.CompositeProduct;
 import model.MenuItem;
@@ -27,14 +28,13 @@ public class AdminView extends JFrame  {
 	private static final long serialVersionUID = 898581997329114336L;
 	
 	private JPanel mainPane;
-	
-	private JScrollPane tablePane;
-	private JTable menuTable;
-	private MenuTableModel tableModel;
-	
+		private JScrollPane tablePane;
+			private JTable menuTable;
+				private MenuTableModel tableModel;
 	private JPanel buttonPane;
-	private JButton newButton = new JButton("New");
-	private JButton deleteButton = new JButton("Delete");
+		private JButton newButton = new JButton("New");
+		private JButton editButton = new JButton("Edit");
+		private JButton deleteButton = new JButton("Delete");
 	
 	/**
 	 * Creates a new AdminView that displays data from the given menu
@@ -45,23 +45,22 @@ public class AdminView extends JFrame  {
 	 */
 	public AdminView(Collection<MenuItem> menu) {
 		mainPane = new JPanel(new BorderLayout());
+				tableModel = new MenuTableModel(menu);
+				
+				menuTable = new JTable(tableModel);
+				menuTable.setFillsViewportHeight(true);
+				menuTable.setRowSelectionAllowed(true);
+				menuTable.setColumnSelectionAllowed(false);
+				menuTable.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			tablePane = new JScrollPane(menuTable);
+			mainPane.add(tablePane, BorderLayout.CENTER);
 		
-		tableModel = new MenuTableModel(menu);
-		// TODO: add listeners so that we know something changed and can change our give menu
-		menuTable = new JTable(tableModel);
-		menuTable.setFillsViewportHeight(true);
-		menuTable.setRowSelectionAllowed(true);
-		menuTable.setColumnSelectionAllowed(false);
-		menuTable.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-		
-		tablePane = new JScrollPane(menuTable);
-		mainPane.add(tablePane, BorderLayout.CENTER);
-		
-		buttonPane = new JPanel(new GridLayout(1, 0));
-		buttonPane.add(newButton);
-		buttonPane.add(deleteButton);
-		mainPane.add(buttonPane, BorderLayout.SOUTH);
-		
+			buttonPane = new JPanel(new GridLayout(1, 0));
+				buttonPane.add(newButton);
+				buttonPane.add(editButton);
+				buttonPane.add(deleteButton);
+			mainPane.add(buttonPane, BorderLayout.SOUTH);
+			
 		add(mainPane);
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		
@@ -77,6 +76,16 @@ public class AdminView extends JFrame  {
 	 */
 	public void attachDeleteListener(ActionListener l) {
 		deleteButton.addActionListener(l);
+	}
+	
+	/**
+	 * Attaches the given listener to the "Edit" button, so
+	 * that it will be activated whenever the user clicks that
+	 * button.
+	 * @param l - the {@link ActionListener} to attach
+	 */
+	public void attachEditListener(ActionListener l) {
+		editButton.addActionListener(l);
 	}
 	
 	/**
@@ -133,7 +142,7 @@ public class AdminView extends JFrame  {
 	
 	/**
 	 * Returns the table data from the given row
-	 * @param row - the row in the table from which data will be retrived
+	 * @param row - the row in the table from which data will be retrieved
 	 * @return The MenuItem associated to the given row
 	 */
 	public MenuItem getRowData(int row) {
@@ -147,6 +156,7 @@ public class AdminView extends JFrame  {
 	 */
 	public void addDataRow(MenuItem item) {
 		tableModel.addRow(item);
+		refresh();
 	}
 	
 	/**
@@ -155,6 +165,26 @@ public class AdminView extends JFrame  {
 	 */
 	public void deleteDataRow(int row) {
 		tableModel.deleteRow(row);
+		refresh();
+	}
+	
+	/**
+	 * Returns all the data in the view's table.
+	 * @return A Collection of MenuItem objects
+	 */
+	public Collection<MenuItem> getData() {
+		return tableModel.getData();
+	}
+	
+	/**
+	 * Replaces the data in the view's table with the given
+	 * data, then repaints the table.
+	 * @param data - a Collection of MenuItem objects
+	 * 			   representing entries of a restaurant menu
+	 */
+	public void setData(Collection<MenuItem> data) {
+		tableModel.setData(new ArrayList<MenuItem>(data));
+		refresh();
 	}
 	
 	/**
@@ -173,22 +203,22 @@ public class AdminView extends JFrame  {
 		
 		private final String[] columnNames = {
 			"Name",
+			"Components",
 			"Price"
 		};
-		@Getter
+		@Getter @Setter
 		private List<MenuItem> data;
 		
 		@Getter
 		private MenuItem elemBeforeUpdate; // Used for a workaround when updating cells
 		
 		public MenuTableModel(Collection<MenuItem> data) {
-			//System.out.println("Is data null? -- " + (null == data ? "YES" : "NO"));
 			this.data = new ArrayList<MenuItem>(data);
 		}
 
 		@Override
 		public int getColumnCount() {
-			return 2;
+			return columnNames.length;
 		}
 		
 		@Override
@@ -222,7 +252,8 @@ public class AdminView extends JFrame  {
 		public boolean isCellEditable(int row, int col) {
 			switch(col) {
 				case 0: return true; // All names can be edited
-				case 1: return data.get(row) instanceof BaseProduct; // Prices can only be edited for BaseProducts
+				case 1: return false; // Components cannot be edited in-line TODO
+				case 2: return data.get(row) instanceof BaseProduct; // Prices can only be edited for BaseProducts
 				default: return false;
 			}
 		}
@@ -231,11 +262,12 @@ public class AdminView extends JFrame  {
 		public Object getValueAt(int row, int col) {
 			switch(col) {
 				case 0: return data.get(row).getName();
-				case 1: return data.get(row).computePrice();
+				case 1: return componentsToString(data.get(row));
+				case 2: return data.get(row).computePrice();
 				default: return null;
 			}
 		}
-		
+
 		@Override
 		public void setValueAt(Object value, int row, int col) {
 			// Hacky hack to store the old element before it is overwritten; essentially a makeshift clone()
@@ -254,7 +286,7 @@ public class AdminView extends JFrame  {
 					data.get(row).setName((String) value);
 					fireTableCellUpdated(row, col);
 					break;
-				case 1:
+				case 2:
 					MenuItem item = data.get(row);
 					if(item instanceof BaseProduct) { // Only the price of basic products can be changed
 						((BaseProduct)item).setPrice( (BigDecimal)value );
@@ -268,9 +300,18 @@ public class AdminView extends JFrame  {
 		public Class<?> getColumnClass(int col) {
 			switch(col) {
 				case 0: return String.class; // Name
-				case 1: return BigDecimal.class; // Computed Quantity
+				case 1: return String.class; // String list of components
+				case 2: return BigDecimal.class; // Computed Quantity
 				default: return null;
 			}
+		}
+		
+		private String componentsToString(MenuItem menuItem) {
+			if(menuItem instanceof CompositeProduct) {
+				StringJoiner joiner = new StringJoiner(", "); // Using '\n' is more complicated with Label displays
+				for(MenuItem i : ((CompositeProduct)menuItem).getSubproducts()) joiner.add(i.getName());
+				return joiner.toString();
+			} else return "-";
 		}
 	}
 }

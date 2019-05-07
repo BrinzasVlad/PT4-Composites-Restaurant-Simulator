@@ -9,5 +9,6 @@ public interface IRestaurantMenuProcessing {
 	public Set<MenuItem> getMenu();
 	public void addToMenu(MenuItem item);
 	public void removeFromMenu(MenuItem item);
+	public void editInMenu(MenuItem oldItem, MenuItem newItem);
 	public void addChangeListener(PropertyChangeListener l);
 }

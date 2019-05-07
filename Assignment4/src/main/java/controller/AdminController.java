@@ -1,10 +1,17 @@
 package controller;
 
+import java.util.Collection;
+import java.util.stream.Collectors;
+
 import javax.swing.event.TableModelEvent;
 
+import model.BaseProduct;
+import model.CompositeProduct;
 import model.MenuItem;
 import model.interfaces.IRestaurantMenuProcessing;
+
 import view.AdminView;
+import view.MenuItemCreationDialog;
 
 public class AdminController {
 	private AdminView view;
@@ -26,7 +33,6 @@ public class AdminController {
 	}
 
 	private void attachViewListeners() {
-		// TODO: add listeners to the view for the "New" and "Delete" buttons
 		view.attachTableChangeListener(e -> {
 			int row = e.getFirstRow(); // Only one cell can be edited at once, so this is all
 			
@@ -35,34 +41,67 @@ public class AdminController {
 			if(e.getType() == TableModelEvent.UPDATE) {
 				MenuItem oldItem = view.getElementBeforeUpdate();
 				if(null != oldItem) {
-					MenuItem changedItem = view.getRowData(row);
-					menuRestaurant.removeFromMenu(oldItem);
-					menuRestaurant.addToMenu(changedItem);
+					MenuItem newItem = view.getRowData(row);
+					menuRestaurant.editInMenu(oldItem, newItem);
 				}
 			}
-//			switch (e.getType()) {
-//				case TableModelEvent.INSERT:
-//					MenuItem newItem = view.getRowData(row);
-//					menuRestaurant.addToMenu(newItem);
-//					break;
-//				case TableModelEvent.UPDATE:
-//					MenuItem oldItem = view.getElementBeforeUpdate();
-//					MenuItem changedItem = view.getRowData(row);
-//					menuRestaurant.removeFromMenu(oldItem);
-//					menuRestaurant.addToMenu(changedItem);
-//					break;
-//				case TableModelEvent.DELETE:
-//					MenuItem deletedItem = view.getElementBeforeUpdate();
-//					menuRestaurant.removeFromMenu(deletedItem);
-//					break;
-//			}
 		});
 		view.attachAddListener(e -> {
-			// TODO: open a new window where you can select composite-or-not
-			// and where you can set the price / components
+			MenuItemCreationDialog dialog = new MenuItemCreationDialog(menuRestaurant.getMenu());
+			MenuItem newItem = dialog.getItem();
+			if(null != newItem) {
+				view.addDataRow(newItem);
+				menuRestaurant.addToMenu(newItem);
+			}
+		});
+		view.attachEditListener(e -> {
+			MenuItem itemToEdit = view.getSelectedRowData();
+			Collection<MenuItem> possibleComponents = menuRestaurant.getMenu().stream()
+													  .filter(i -> (!isOrContains(i, itemToEdit)))
+													  .collect(Collectors.toList());
+			
+			MenuItem newValue;
+			if(itemToEdit instanceof BaseProduct) {
+				MenuItemCreationDialog dialog = new MenuItemCreationDialog(possibleComponents,
+																		   (BaseProduct)itemToEdit);
+				newValue = dialog.getItem();
+			} else {
+				MenuItemCreationDialog dialog = new MenuItemCreationDialog(possibleComponents,
+						   												   (CompositeProduct)itemToEdit);
+				newValue = dialog.getItem();
+			}
+			
+			if(null != newValue) {
+				menuRestaurant.editInMenu(itemToEdit, newValue);
+				
+				view.setData(menuRestaurant.getMenu());
+			}
 		});
 		view.attachDeleteListener(e -> {
-			// TODO: cascadingly delete the base product and all products containing it
+			MenuItem itemToDelete = view.getSelectedRowData();
+			menuRestaurant.removeFromMenu(itemToDelete);
+			
+			view.setData(menuRestaurant.getMenu());
 		});
+	}
+	
+	/**
+	 * Tests whether the given item to test either is or contains
+	 * in its components, components of components and so on, the
+	 * given item to test for.
+	 * @param itemToTest - an item that may or may not contain <b>itemToTestFor</b>
+	 * @param itemToTestFor - the item that must be detected, if present
+	 * @return <b>true</b> if the item to look for is found, <b>false</b> otherwise
+	 */
+	private boolean isOrContains(MenuItem itemToTest, MenuItem itemToTestFor) {
+		if(itemToTest.equals(itemToTestFor)) return true;
+		
+		if(itemToTest instanceof CompositeProduct) {
+			for(MenuItem subItem : ((CompositeProduct)itemToTest).getSubproducts()) {
+				if(isOrContains(subItem, itemToTestFor)) return true;
+			}
+		}
+		
+		return false;
 	}
 }
