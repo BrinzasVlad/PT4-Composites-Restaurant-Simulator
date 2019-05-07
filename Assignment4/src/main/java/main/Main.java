@@ -15,6 +15,13 @@ public class Main {
 	
 	public void start() {
 		restaurant = serializer.deserialize();
+		if(null == restaurant) {
+			System.out.println("Unable to load restaurant configuration file");
+			System.out.println("(Possibly this is the first run on this machine?)");
+			System.out.println("The system has loaded an empty configuration");
+			
+			restaurant = new Restaurant();
+		}
 		
 		UserSelectionController controller = new UserSelectionController(restaurant);
 		controller.attachViewWindowListener(new WindowListener() {

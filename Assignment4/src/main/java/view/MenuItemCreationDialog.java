@@ -8,7 +8,9 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ItemEvent;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
@@ -92,8 +94,15 @@ public class MenuItemCreationDialog {
 		
 		name.setText(prod.getName());
 		isComposite.setSelected(true);
+		
+		List<Integer> toSelect = new ArrayList<Integer>();
 		for(MenuItem i : prod.getSubproducts()) {
 			components.setSelectedValue(i, false);
+			toSelect.add(components.getSelectedIndex()); // Hacky! I just need the indices, basically
+		}
+		
+		for(Integer i : toSelect) {
+			components.addSelectionInterval(i, i);
 		}
 	}
 	
