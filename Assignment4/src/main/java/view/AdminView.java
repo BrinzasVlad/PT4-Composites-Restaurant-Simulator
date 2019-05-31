@@ -284,7 +284,7 @@ public class AdminView extends JFrame  {
 			switch(col) {
 				case 0:
 					data.get(row).setName((String) value);
-					fireTableCellUpdated(row, col);
+					fireTableDataChanged(); // Because component name might cascade, we need to redraw it all
 					break;
 				case 2:
 					MenuItem item = data.get(row);
